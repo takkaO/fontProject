@@ -115,12 +115,45 @@ class MyFont:
 		#ax.set_ylim(0, 2000)
 		#ax.grid()
 		plt.show()
+	
+	def test(self, char="a"):
+		ctrl = self.getVectorControl(char)
+		verts, codes = self.control2Path(ctrl)
+
+		gx = 0.0
+		gy = 0.0
+		for point in verts:
+			gx += point[0]
+			gy += point[1]
+		gx /= len(verts)
+		gy /= len(verts)
+
+		g_point = np.array([gx, gy])
+		vector = []
+		for point in verts:
+			vector.append(np.linalg.norm(g_point - np.array(point)))
+
+		return np.array(vector)
+
 
 def main():
 	myfont = MyFont("./IPAfont00303/ipag.ttf")
 	#myfont = MyFont("./NotoMono-hinted/NotoMono-Regular.ttf")
-	myfont.draw("a")
+	#myfont.draw("Å")
+	v1 = myfont.test("V")
+	v2 = myfont.test("A")
 
-	
+	penalty = 0
+	if len(v1) < len(v2):
+		penalty = len(v2) - len(v1)
+		v2 = v2[0:len(v1)]
+	elif len(v1) > len(v2):
+		penalty = len(v1) - len(v2)
+		v1 = v1[0:len(v2)]
+
+	cos = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+	print(cos)
+	print(cos - (penalty / 100.0))
+
 if __name__ == "__main__":
 	main()
