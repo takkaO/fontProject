@@ -11,10 +11,10 @@ class Point:
 
 class Bezier4:
 	def __init__(self, sp, cp1, cp2, ep):
-		self.v1 = sp
-		self.cp1 = cp1
-		self.cp2 = cp2
-		self.v2 = ep
+		self.v1 = np.array(sp)
+		self.cp1 = np.array(cp1)
+		self.cp2 = np.array(cp2)
+		self.v2 = np.array(ep)
 		self.code = [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4]
 	
 	@property
@@ -30,6 +30,23 @@ class Bezier4:
 		xs, ys = zip(*self.verts)
 		return xs, ys
 	
+	def scaling(self, scale):
+		return Bezier4(self.v1*scale, self.cp1*scale, self.cp2*scale, self.v2*scale)
+	
+	def translation(self, dist):
+		d = np.array(dist)
+		return Bezier4(self.v1-d, self.cp1-d, self.cp2-d, self.v2-d)
+
+	def rotate(self, rad):
+		rv = np.array([[np.cos(rad), -np.sin(rad)],
+					   [np.sin(rad),  np.cos(rad)]])
+
+		p = []
+		for c in self.verts:
+			p.append(np.dot(rv, c))
+		
+		return Bezier4(p[0], p[1], p[2], p[3])
+
 	def getControlPointLineSegment(self):
 		l1 = LineSegment(self.v1, self.cp1)
 		l2 = LineSegment(self.cp1, self.cp2)
@@ -95,8 +112,8 @@ class Bezier4:
 
 class LineSegment:
 	def __init__(self, sp, ep):
-		self.v1 = sp
-		self.v2 = ep
+		self.v1 = np.array(sp)
+		self.v2 = np.array(ep)
 		self.code = [Path.MOVETO, Path.LINETO]
 	
 	@property
@@ -141,6 +158,7 @@ class LineSegment:
 		ac = np.linalg.norm(p1 - p3)
 		bc = np.linalg.norm(p3 - p2)
 		ab = np.linalg.norm(p1 - p2)
+		#print(ac+bc, ab+ERROR)
 
 		return ac + bc < ab + error
 	
@@ -167,3 +185,37 @@ class LineSegment:
 		xs, ys = self.points4matplot
 		ax.plot(xs, ys, linestyle, color=color)
 		return ax
+	
+	def translation(self, point):
+		p = np.array(point)
+		return LineSegment(self.v1-p, self.v2-p)
+	
+	def scaling(self, rate):
+		pass
+
+	def calc_rad(self, ls):
+		if not self.is_point_on_line(ls.v1):
+			print("Need to cross!")
+			exit()
+		# 基準はこのインスタンスの直線
+		base = np.array(self.v2)
+		target = np.array(ls.v2)
+
+		a = np.dot(base, target)
+		cos = a / (self.length * ls.length)
+		theta = np.arccos(cos)
+		if np.sign(ls.v2[1]) < 0:
+			theta *= -1
+
+		return theta
+	
+	def rotate(self, rad):
+		rv = np.array([[np.cos(rad), -np.sin(rad)],
+                	   [np.sin(rad),  np.cos(rad)]])
+
+		p = []
+		for c in self.verts:
+			p.append(np.dot(rv, c))
+		
+		return LineSegment(p[0], p[1])
+
