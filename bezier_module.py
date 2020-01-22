@@ -1,5 +1,9 @@
 from matplotlib.path import Path
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
 import numpy as np
+
+ERROR = 1e-12
 
 class Point:
 	def __init__(self, point):
@@ -70,6 +74,24 @@ class Bezier4:
 		ssp2 = l5.split_point(rate)
 
 		return Bezier4(self.v1, sp1, ssp1, new_anchor_point), Bezier4(new_anchor_point, ssp2, sp3, self.v2)
+	
+	def plot_bezier(self, ax=None, color="black"):
+		if ax is None:
+			_, ax = plt.subplots()
+		path = Path(self.verts, self.codes)
+		patch = patches.PathPatch(path, facecolor='none', lw=2, edgecolor=color)
+		ax.add_patch(patch)
+		ax.plot()
+		return ax
+	
+	def plot_control_point(self, ax = None, color='black'):
+		if ax is None:
+			_, ax = plt.subplots()
+		# 制御点の描画
+		xs, ys = self.points4matplot
+		ax.plot(xs, ys, 'x--', lw=2, color=color, ms=10)
+		return ax
+
 
 class LineSegment:
 	def __init__(self, sp, ep):
@@ -90,15 +112,19 @@ class LineSegment:
 		xs, ys = zip(*self.verts)
 		return xs, ys
 	
-	def cross_point(self, ls):
+	@property
+	def length(self):
+		return np.linalg.norm(np.array(self.v1) - np.array(self.v2))
+
+	def cross_point(self, ls, error=ERROR):
 		a, b = self.v1
 		c, d = self.v2
 		v1, v2 = ls.verts
 		e, f = v1
 		g, h = v2
 
-		Xp = ((f*g-e*h) * (c - a) - (b*c-a*d) * (g - e)) / ((d-b)*(g-e)-(c-a)*(h-f))
-		Yp = ((f*g-e*h) * (d - b) - (b*c-a*d) * (h - f)) / ((d-b)*(g-e)-(c-a)*(h-f))
+		Xp = ((f*g-e*h) * (c - a) - (b*c-a*d) * (g - e)) / ((d-b)*(g-e)-(c-a)*(h-f) + error)
+		Yp = ((f*g-e*h) * (d - b) - (b*c-a*d) * (h - f)) / ((d-b)*(g-e)-(c-a)*(h-f) + error)
 
 		res = self.is_point_on_line((Xp, Yp))
 		if res:
@@ -106,7 +132,7 @@ class LineSegment:
 		else:
 			return None
 
-	def is_point_on_line(self, point, error=1e-6):
+	def is_point_on_line(self, point, error=ERROR):
 		p1 = np.array(self.v1)
 		p2 = np.array(self.v2)
 		p3 = np.array(point)
@@ -134,3 +160,10 @@ class LineSegment:
 		m = np.linalg.norm(np.array(self.v1) - np.array(point))
 
 		return m/x
+	
+	def plot_line(self, ax = None, linestyle="o-", color=None):
+		if ax is None:
+			_, ax = plt.subplots()
+		xs, ys = self.points4matplot
+		ax.plot(xs, ys, linestyle, color=color)
+		return ax
