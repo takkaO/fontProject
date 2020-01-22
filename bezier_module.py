@@ -46,6 +46,19 @@ class Bezier4:
 			p.append(np.dot(rv, c))
 		
 		return Bezier4(p[0], p[1], p[2], p[3])
+	
+	def h_flip(self):
+		v1 = self.v1
+		cp1 = self.cp1
+		cp2 = self.cp2
+		v2 = self.v2
+
+		v1[1] = -v1[1]
+		cp1[1] = -cp1[1]
+		cp2[1] = -cp2[1]
+		v2[1] = -v2[1]
+
+		return Bezier4(v1, cp1, cp2, v2)
 
 	def getControlPointLineSegment(self):
 		l1 = LineSegment(self.v1, self.cp1)

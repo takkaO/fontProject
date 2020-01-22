@@ -80,11 +80,16 @@ class MyAfine:
 		self.line_segment = line_segment
 		self.bezier = bezier
 
-	def	normalize_bezier(self, bezier):
-		# x軸だけで良い
-		mb = bezier.translation((bezier.v1[0], 0))
+	def	normalize_bezier(self, bezier, ax):
 		scale = 1.0 / (bezier.v2[0] - bezier.v1[0])
-		bezier_normalize = mb.scaling(scale)
+		#scale = 1.0
+		mb = bezier.scaling(scale)
+		# x軸だけで良い
+
+		#ax.plot([mb.v1[0], 1.0], [mb.v1[1], mb.v1[1]], '-')
+		tv = mb.v1[0]
+		bezier_normalize = mb.translation((tv, 0))
+		#bezier_normalize = bezier_normalize.h_flip()
 		return bezier_normalize, scale
 	
 	def denormalize_bezier(self, bezier, descale):
@@ -93,7 +98,7 @@ class MyAfine:
 		return bezier_denormalize
 
 	def normalize_line(self, ls):
-		
+		pass	
 
 	def get_rotate_angle(self):
 		# ベースラインはこの直線とする
@@ -114,11 +119,38 @@ class MyAfine:
 		return nb, nl
 
 
+def test_detection_point():
+	#parent_bp = Bezier4((0, 2), (1.0/3.0, 6), (2.0/3.0, 4), (1, -3))
+	parent_bp = Bezier4((0, 2), (0/3.0, 6), (2.0/3.0, 4), (1, -3))
+	parent_line = LineSegment((0, 0), (1, 0))
 
+	ax = parent_bp.plot_bezier(color="darkblue")
+	parent_bp.plot_control_point(ax, color="gray")
+	parent_line.plot_line(ax)
+
+	# 描画
+	ax = parent_bp.plot_bezier(color="darkblue")
+	parent_bp.plot_control_point(ax)
+	parent_line.plot_line(ax)
+
+	bc = BezierClipping(parent_bp, parent_line)
+	res = bc.recursion_clipping(limit=1e-3, debug=True)
+	print(res)
+	if res:
+		t = round(bc.current_line.v1[0], 3)
+		point = parent_bp.beizer_point(t)
+		print(point)
+
+		ax.plot(point[0], point[1], 'o', color="red")
+	plt.grid()
+	plt.show()
 
 
 def main():
 	print("Hello World")
+	test_detection_point()
+
+	return
 	parent_bp = Bezier4((0.2, 2), (1.0/3.0, 6), (2.0/3.0, -4), (1.2, -3))
 	parent_line = LineSegment((0, 0), (1, 1))
 
@@ -134,34 +166,37 @@ def main():
 	af = MyAfine(parent_bp, parent_line)
 	b, l = af.rotate()
 	b.plot_bezier(ax)
+	b.plot_control_point(ax)
 	l.plot_line(ax)
-	nb, scale = af.normalize_bezier(b)
-	#b.plot_bezier(ax)
+	nb, scale = af.normalize_bezier(b, ax)
+	
 	nb.plot_bezier(ax)
-	#l.plot_line(ax)
+	nb.plot_control_point(ax)
+
+	p = nb.beizer_point(0)
+	ax.plot(p[0], p[1], 'o', color="red")
+
+	p = nb.beizer_point(0.1)
+	ax.plot(p[0], p[1], 'o', color="red")
+
+	p = nb.beizer_point(0.5)
+	ax.plot(p[0], p[1], 'o', color="red")
+	
+	p = nb.beizer_point(0.9)
+	ax.plot(p[0], p[1], 'o', color="red")
+
+	p = nb.beizer_point(1)
+	ax.plot(p[0], p[1], 'o', color="red")
+
 	ax.set_aspect('equal')
 
+	#bc = BezierClipping(nb, LineSegment((0,0), (1,0)))
+	#bc.recursion_clipping(debug=True)
+
 	plt.grid()
 	plt.show()
+
 	
-	return
-		
-	# 描画
-	ax = parent_bp.plot_bezier(color="darkblue")
-	parent_bp.plot_control_point(ax)
-	parent_line.plot_line(ax)
-
-	bc = BezierClipping(parent_bp, parent_line)
-	res = bc.recursion_clipping(limit=1e-3, debug=False)
-	print(res)
-	if res:
-		t = round(bc.current_line.v1[0], 3)
-		point = parent_bp.beizer_point(t)
-		print(point)
-
-		ax.plot(point[0], point[1], 'o', color="red")
-	plt.grid()
-	plt.show()
 
 if __name__ == "__main__":
 	main()
