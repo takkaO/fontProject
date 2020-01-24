@@ -44,7 +44,7 @@ class BezierClipping:
 
 		t = []
 		for i in range(len(convex)):
-			p = convex[i].cross_point(self.current_line)
+			p = convex[i].cross_point(self.current_line, 1e-12)
 			if not p is None:
 				t.append(p)
 				if not ax is None:
@@ -155,8 +155,8 @@ def main():
 	print("Hello World")
 	#test_detection_point()
 
-	parent_bp = Bezier4((0, 2), (1.0/3.0, 6), (2.0/3.0, -4), (1.0, -3))
-	parent_line = LineSegment((0, 0), (1, 0))
+	parent_bp = Bezier4((0, 2), (0.0/3.0, 6), (2.0/3.0, -4), (1.0, -3))
+	parent_line = LineSegment((0, 0), (1, 1))
 
 	
 	
@@ -177,7 +177,9 @@ def main():
 	nb.plot_control_point(ax)
 
 	bc = BezierClipping(nb, LineSegment((0,0), (1,0)))
-	bc.recursion_clipping(debug=True)
+	res = bc.recursion_clipping(debug=True)
+
+	print(res)
 
 	plt.grid()
 	plt.show()

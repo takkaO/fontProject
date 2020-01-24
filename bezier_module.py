@@ -3,8 +3,6 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 
-ERROR = 1e-6
-
 class Point:
 	def __init__(self, point):
 	 self.x, self.y = point
@@ -153,7 +151,7 @@ class LineSegment:
 		c = self.v2[0] * self.v1[1] - self.v1[0] * self.v2[1]
 		return a, b, c
 
-	def cross_point(self, ls, error=ERROR):
+	def cross_point(self, ls, error=1e-12):
 		a, b = self.v1
 		c, d = self.v2
 		v1, v2 = ls.verts
@@ -169,7 +167,7 @@ class LineSegment:
 		else:
 			return None
 
-	def is_point_on_line(self, point, error=ERROR):
+	def is_point_on_line(self, point, error=1e-6):
 		p1 = np.array(self.v1)
 		p2 = np.array(self.v2)
 		p3 = np.array(point)
@@ -178,7 +176,7 @@ class LineSegment:
 		ac = np.linalg.norm(p1 - p3)
 		bc = np.linalg.norm(p3 - p2)
 		ab = np.linalg.norm(p1 - p2)
-		print(ac+bc, ab+ERROR)
+		#print("debug", ac+bc, ab+error)
 
 		return ac + bc < ab + error
 	
