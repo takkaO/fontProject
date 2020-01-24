@@ -22,7 +22,12 @@ class BezierClipping:
 					_, ax = plt.subplots()
 					self.parent_line.plot_line(ax)
 					self.parent_bezier.plot_bezier(ax, color="darkblue")
-				self.current_bezier, self.current_line = self.clipping(ax)
+				nb, nl = self.clipping(ax)
+
+				if not nb is None:
+					self.current_bezier, self.current_line = nb, nl
+				else:
+					return False
 			return True
 		except:
 			import traceback
@@ -121,8 +126,8 @@ class MyAfine:
 
 def test_detection_point():
 	#parent_bp = Bezier4((0, 2), (1.0/3.0, 6), (2.0/3.0, 4), (1, -3))
-	parent_bp = Bezier4((0, 2), (0/3.0, 6), (2.0/3.0, 4), (1, -3))
-	parent_line = LineSegment((0, 0), (1, 0))
+	parent_bp = Bezier4((0, 2), (0/3.0, 6), (2.0/3.0, 4), (2, -3))
+	parent_line = LineSegment((0, 0), (1, 1))
 
 	ax = parent_bp.plot_bezier(color="darkblue")
 	parent_bp.plot_control_point(ax, color="gray")
@@ -148,11 +153,10 @@ def test_detection_point():
 
 def main():
 	print("Hello World")
-	test_detection_point()
+	#test_detection_point()
 
-	return
-	parent_bp = Bezier4((0.2, 2), (1.0/3.0, 6), (2.0/3.0, -4), (1.2, -3))
-	parent_line = LineSegment((0, 0), (1, 1))
+	parent_bp = Bezier4((0, 2), (1.0/3.0, 6), (2.0/3.0, -4), (1.0, -3))
+	parent_line = LineSegment((0, 0), (1, 0))
 
 	
 	
@@ -160,42 +164,25 @@ def main():
 	parent_bp.plot_control_point(ax, color="gray")
 	parent_line.plot_line(ax)
 
+	new_bezier_point = []
+	a, b, c = parent_line.equation_coefficient
+	for i, point in enumerate(parent_bp.verts):
+		d = (a * point[0] + b * point[1] + c) / parent_line.length
+		new_bezier_point.append((i/3, d))
 	
+	print(new_bezier_point)
+	nb = Bezier4(new_bezier_point[0], new_bezier_point[1], new_bezier_point[2], new_bezier_point[3])
 
-	#_, ax = plt.subplots()
-	af = MyAfine(parent_bp, parent_line)
-	b, l = af.rotate()
-	b.plot_bezier(ax)
-	b.plot_control_point(ax)
-	l.plot_line(ax)
-	nb, scale = af.normalize_bezier(b, ax)
-	
 	nb.plot_bezier(ax)
 	nb.plot_control_point(ax)
 
-	p = nb.beizer_point(0)
-	ax.plot(p[0], p[1], 'o', color="red")
-
-	p = nb.beizer_point(0.1)
-	ax.plot(p[0], p[1], 'o', color="red")
-
-	p = nb.beizer_point(0.5)
-	ax.plot(p[0], p[1], 'o', color="red")
-	
-	p = nb.beizer_point(0.9)
-	ax.plot(p[0], p[1], 'o', color="red")
-
-	p = nb.beizer_point(1)
-	ax.plot(p[0], p[1], 'o', color="red")
-
-	ax.set_aspect('equal')
-
-	#bc = BezierClipping(nb, LineSegment((0,0), (1,0)))
-	#bc.recursion_clipping(debug=True)
+	bc = BezierClipping(nb, LineSegment((0,0), (1,0)))
+	bc.recursion_clipping(debug=True)
 
 	plt.grid()
 	plt.show()
 
+	
 	
 
 if __name__ == "__main__":

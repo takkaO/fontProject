@@ -3,7 +3,7 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 
-ERROR = 1e-12
+ERROR = 1e-6
 
 class Point:
 	def __init__(self, point):
@@ -146,6 +146,13 @@ class LineSegment:
 	def length(self):
 		return np.linalg.norm(np.array(self.v1) - np.array(self.v2))
 
+	@property
+	def equation_coefficient(self):
+		a = self.v2[1] - self.v1[1]
+		b = self.v2[0] - self.v1[0]
+		c = self.v2[0] * self.v1[1] - self.v1[0] * self.v2[1]
+		return a, b, c
+
 	def cross_point(self, ls, error=ERROR):
 		a, b = self.v1
 		c, d = self.v2
@@ -171,7 +178,7 @@ class LineSegment:
 		ac = np.linalg.norm(p1 - p3)
 		bc = np.linalg.norm(p3 - p2)
 		ab = np.linalg.norm(p1 - p2)
-		#print(ac+bc, ab+ERROR)
+		print(ac+bc, ab+ERROR)
 
 		return ac + bc < ab + error
 	
