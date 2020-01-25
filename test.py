@@ -4,6 +4,7 @@ from matplotlib.path import Path
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
+from bezier_clipping import BezierClipping
 
 class MyFont:
 	def __init__(self, font_path):

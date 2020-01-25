@@ -7,6 +7,76 @@ class Point:
 	def __init__(self, point):
 	 self.x, self.y = point
 
+class Bezier3:
+	def __init__(self, sp, cp1, ep):
+		self.v1 = np.array(sp)
+		self.cp1 = np.array(cp1)
+		self.v2 = np.array(ep)
+		self.code = [Path.MOVETO, Path.CURVE3, Path.CURVE3]
+	
+	@property
+	def verts(self):
+		return [self.v1, self.cp1, self.v2]
+
+	@property
+	def codes(self):
+		return self.code
+
+	@property
+	def points4matplot(self):
+		xs, ys = zip(*self.verts)
+		return xs, ys
+
+	def getControlPointLineSegment(self):
+		l1 = LineSegment(self.v1, self.cp1)
+		l2 = LineSegment(self.cp1, self.v2)
+		return l1, l2
+	
+	def getConvexLineSegment(self):
+		l1 = LineSegment(self.v1, self.cp1)
+		l2 = LineSegment(self.cp1, self.v2)
+		l3 = LineSegment(self.v1, self.v2)
+		return l1, l2, l3
+	
+	def beizer_point(self, t):
+		f = []
+		for value in self.verts:
+			f.append(Point(value))
+
+		# 2次ベジェ曲線を解析的に展開した式
+		x = (f[0].x - 2*f[1].x + f[2].x) * t**2 + (-2*f[0].x + 2*f[1].x) * t + f[0].x
+		y = (f[0].y - 2*f[1].y + f[2].y) * t**2 + (-2*f[0].y + 2*f[1].y) * t + f[0].y
+
+		return (x, y)
+
+	def split_bezier(self, rate, new_anchor_point):
+		l1, l2 = self.getControlPointLineSegment()
+
+		sp1 = l1.split_point(rate)
+		sp2 = l2.split_point(rate)
+
+		l3 = LineSegment(sp1, sp2)
+		ssp1 = l3.split_point(rate)
+
+		return Bezier3(self.v1, sp1, ssp1), Bezier3(ssp1, sp2, self.v2)
+
+	def plot_bezier(self, ax=None, color="black"):
+		if ax is None:
+			_, ax = plt.subplots()
+		path = Path(self.verts, self.codes)
+		patch = patches.PathPatch(path, facecolor='none', lw=2, edgecolor=color)
+		ax.add_patch(patch)
+		ax.plot()
+		return ax
+
+	def plot_control_point(self, ax=None, color='black'):
+		if ax is None:
+			_, ax = plt.subplots()
+		# 制御点の描画
+		xs, ys = self.points4matplot
+		ax.plot(xs, ys, 'x--', lw=2, color=color, ms=10)
+		return ax
+
 class Bezier4:
 	def __init__(self, sp, cp1, cp2, ep):
 		self.v1 = np.array(sp)
