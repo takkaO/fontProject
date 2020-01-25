@@ -27,36 +27,6 @@ class Bezier4:
 	def points4matplot(self):
 		xs, ys = zip(*self.verts)
 		return xs, ys
-	
-	def scaling(self, scale):
-		return Bezier4(self.v1*scale, self.cp1*scale, self.cp2*scale, self.v2*scale)
-	
-	def translation(self, dist):
-		d = np.array(dist)
-		return Bezier4(self.v1-d, self.cp1-d, self.cp2-d, self.v2-d)
-
-	def rotate(self, rad):
-		rv = np.array([[np.cos(rad), -np.sin(rad)],
-					   [np.sin(rad),  np.cos(rad)]])
-
-		p = []
-		for c in self.verts:
-			p.append(np.dot(rv, c))
-		
-		return Bezier4(p[0], p[1], p[2], p[3])
-	
-	def h_flip(self):
-		v1 = self.v1
-		cp1 = self.cp1
-		cp2 = self.cp2
-		v2 = self.v2
-
-		v1[1] = -v1[1]
-		cp1[1] = -cp1[1]
-		cp2[1] = -cp2[1]
-		v2[1] = -v2[1]
-
-		return Bezier4(v1, cp1, cp2, v2)
 
 	def getControlPointLineSegment(self):
 		l1 = LineSegment(self.v1, self.cp1)
@@ -147,9 +117,13 @@ class LineSegment:
 	@property
 	def equation_coefficient(self):
 		a = self.v2[1] - self.v1[1]
-		b = self.v2[0] - self.v1[0]
+		b = self.v1[0] - self.v2[0] # 符号（移項した）に注意
 		c = self.v2[0] * self.v1[1] - self.v1[0] * self.v2[1]
 		return a, b, c
+	
+	@property
+	def midpoint(self):
+		return (self.v1 + self.v2) / 2.0
 
 	def cross_point(self, ls, error=1e-12):
 		a, b = self.v1
@@ -204,36 +178,3 @@ class LineSegment:
 		ax.plot(xs, ys, linestyle, color=color)
 		return ax
 	
-	def translation(self, point):
-		p = np.array(point)
-		return LineSegment(self.v1-p, self.v2-p)
-	
-	def scaling(self, rate):
-		pass
-
-	def calc_rad(self, ls):
-		if not self.is_point_on_line(ls.v1):
-			print("Need to cross!")
-			exit()
-		# 基準はこのインスタンスの直線
-		base = np.array(self.v2)
-		target = np.array(ls.v2)
-
-		a = np.dot(base, target)
-		cos = a / (self.length * ls.length)
-		theta = np.arccos(cos)
-		if np.sign(ls.v2[1]) < 0:
-			theta *= -1
-
-		return theta
-	
-	def rotate(self, rad):
-		rv = np.array([[np.cos(rad), -np.sin(rad)],
-                	   [np.sin(rad),  np.cos(rad)]])
-
-		p = []
-		for c in self.verts:
-			p.append(np.dot(rv, c))
-		
-		return LineSegment(p[0], p[1])
-

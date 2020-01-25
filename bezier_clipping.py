@@ -5,7 +5,34 @@ import numpy as np
 from bezier_module import Bezier4, LineSegment
 
 
-class BezierClipping:
+def test_detection_point():
+	#parent_bp = Bezier4((0, 2), (1.0/3.0, 6), (2.0/3.0, 4), (1, -3))
+	parent_bp = Bezier4((0, 2), (0/3.0, 6), (2.0/3.0, 4), (2, -3))
+	parent_line = LineSegment((0, 0), (1, 1))
+
+	ax = parent_bp.plot_bezier(color="darkblue")
+	parent_bp.plot_control_point(ax, color="gray")
+	parent_line.plot_line(ax)
+
+	# 描画
+	ax = parent_bp.plot_bezier(color="darkblue")
+	parent_bp.plot_control_point(ax)
+	parent_line.plot_line(ax)
+
+	bc = BezierClippingOld(parent_bp, parent_line)
+	res = bc.recursion_clipping(limit=1e-3, debug=True)
+	print(res)
+	if res:
+		t = round(bc.current_line.v1[0], 3)
+		point = parent_bp.beizer_point(t)
+		print(point)
+
+		ax.plot(point[0], point[1], 'o', color="red")
+	plt.grid()
+	plt.show()
+
+
+class BezierClippingOld:
 	def __init__(self, parent_bezier, parent_line):
 		# 現状ではx:0-1に正規化されているものとする
 		# Bezier4とLineSegmentオブジェクト
@@ -79,107 +106,94 @@ class BezierClipping:
 
 		return b2, LineSegment(t[0], t[1])	
 
+class BezierClipping:
+	def __init__(self, bezier, line):
+		self.original_bezier = bezier
+		self.original_line = line
 
-class MyAfine:
-	def __init__(self, bezier, line_segment):
-		self.line_segment = line_segment
-		self.bezier = bezier
+		# 変換処理
+		self.converted_bezier = self.convert_bezier(self.original_bezier, self.original_line)
+		self.converted_line = LineSegment((0,0), (1,0))
 
-	def	normalize_bezier(self, bezier, ax):
-		scale = 1.0 / (bezier.v2[0] - bezier.v1[0])
-		#scale = 1.0
-		mb = bezier.scaling(scale)
-		# x軸だけで良い
+	def convert_bezier(self, bezier, line):
+		a, b, c = line.equation_coefficient
+		tmp = []
+		n = len(bezier.verts) - 1
+		for i, point in enumerate(bezier.verts):
+			d = (a * point[0] + b * point[1] + c) / (np.sqrt(a**2 + b**2))
+			tmp.append((i/n, d))
+		
+		if n == 3:
+			# 3次ベジェ
+			return Bezier4(tmp[0], tmp[1], tmp[2], tmp[3])
+		elif n == 2:
+			# 2次ベジェ
+			return None
+		else:
+			return None
 
-		#ax.plot([mb.v1[0], 1.0], [mb.v1[1], mb.v1[1]], '-')
-		tv = mb.v1[0]
-		bezier_normalize = mb.translation((tv, 0))
-		#bezier_normalize = bezier_normalize.h_flip()
-		return bezier_normalize, scale
-	
-	def denormalize_bezier(self, bezier, descale):
-		sb = bezier.scaling(1.0 / descale)
-		bezier_denormalize = sb.translation((-bezier.v1[0], 0))
-		return bezier_denormalize
+	def clipping(self, current_bezier = None, current_line = None, limit=1e-3):
+		if current_bezier is None:
+			current_bezier = self.converted_bezier
+		if current_line is None:
+			current_line = self.converted_line
+		# 凸包の4線分を取得
+		convex = current_bezier.getConvexLineSegment()
 
-	def normalize_line(self, ls):
-		pass	
+		t = []
+		for i in range(len(convex)):
+			p = convex[i].cross_point(current_line)
+			if not p is None:
+				t.append(p)
+		
+		if len(t) < 2:
+			# TODO:1個だけの場合
+			print("No cross point")
+			return current_line.midpoint[0], False
+		
+		# tmin, tmax
+		t = sorted(t)
+		print("t:", t)
 
-	def get_rotate_angle(self):
-		# ベースラインはこの直線とする
-		base = LineSegment((0, 0), (1, 0))
-		# 基準をそろえる
-		target = self.line_segment.translation(self.line_segment.v1)
+		p = []
+		for i in range(len(t)):
+			# ベジェ曲線上のポイントを取得
+			z = self.converted_bezier.beizer_point(t[i][0])
+			p.append(z)
+		
+		_, b1 = self.converted_bezier.split_bezier(self.converted_line.calc_rate(t[0]), p[0])
+		
+		rate = LineSegment(t[0], self.converted_line.v2).calc_rate(t[1])
 
-		theta = base.calc_rad(target)
-		#print(theta)
-		#print(np.rad2deg(theta))
-		return theta
+		next_bezier, _ = b1.split_bezier(rate, p[1])
+		next_line = LineSegment(t[0], t[1])
 
-	def rotate(self):
-		rad = self.get_rotate_angle()
-
-		nb = self.bezier.rotate(-rad)
-		nl = self.line_segment.rotate(-rad)
-		return nb, nl
-
-
-def test_detection_point():
-	#parent_bp = Bezier4((0, 2), (1.0/3.0, 6), (2.0/3.0, 4), (1, -3))
-	parent_bp = Bezier4((0, 2), (0/3.0, 6), (2.0/3.0, 4), (2, -3))
-	parent_line = LineSegment((0, 0), (1, 1))
-
-	ax = parent_bp.plot_bezier(color="darkblue")
-	parent_bp.plot_control_point(ax, color="gray")
-	parent_line.plot_line(ax)
-
-	# 描画
-	ax = parent_bp.plot_bezier(color="darkblue")
-	parent_bp.plot_control_point(ax)
-	parent_line.plot_line(ax)
-
-	bc = BezierClipping(parent_bp, parent_line)
-	res = bc.recursion_clipping(limit=1e-3, debug=True)
-	print(res)
-	if res:
-		t = round(bc.current_line.v1[0], 3)
-		point = parent_bp.beizer_point(t)
-		print(point)
-
-		ax.plot(point[0], point[1], 'o', color="red")
-	plt.grid()
-	plt.show()
-
+		if next_line.length <= limit:
+			return next_line.midpoint[0], True
+		return self.clipping(next_bezier, next_line)
 
 def main():
 	print("Hello World")
 	#test_detection_point()
 
-	parent_bp = Bezier4((0, 2), (0.0/3.0, 6), (2.0/3.0, -4), (1.0, -3))
-	parent_line = LineSegment((0, 0), (1, 1))
+	parent_bp = Bezier4((0, 2), (0.0/3.0, 3), (1.0/3.0, -4), (1.0, -3))
+	parent_line = LineSegment((0, 0), (0.7, 2))
 
-	
 	
 	ax = parent_bp.plot_bezier(color="darkblue")
 	parent_bp.plot_control_point(ax, color="gray")
 	parent_line.plot_line(ax)
 
-	new_bezier_point = []
-	a, b, c = parent_line.equation_coefficient
-	for i, point in enumerate(parent_bp.verts):
-		d = (a * point[0] + b * point[1] + c) / parent_line.length
-		new_bezier_point.append((i/3, d))
-	
-	print(new_bezier_point)
-	nb = Bezier4(new_bezier_point[0], new_bezier_point[1], new_bezier_point[2], new_bezier_point[3])
+	bc = BezierClipping(parent_bp, parent_line)
+	t, res = bc.clipping(limit=1e-3)
 
-	nb.plot_bezier(ax)
-	nb.plot_control_point(ax)
-
-	bc = BezierClipping(nb, LineSegment((0,0), (1,0)))
-	res = bc.recursion_clipping(debug=True)
-
+	print(t)
 	print(res)
+
+	bc.converted_bezier.plot_bezier(ax)
+
+	point = parent_bp.beizer_point(t)
+	ax.plot(point[0], point[1], 'o', color="red")
 
 	plt.grid()
 	plt.show()
