@@ -258,7 +258,6 @@ class MyFont:
 
 		base_line = LineSegment((gp[0], gp[1]), (gp[0] + max(b_x, b_y) ,gp[1]))
 		points = []
-
 		for line in self.make_lines(base_line, 32):
 			tmp = []
 			line.plot_line(ax, color="gray")
@@ -268,22 +267,34 @@ class MyFont:
 					t, res = bc.clipping()
 					if res:
 						p = l.beizer_point(t)
-						tmp.append(p)
+						if line.is_point_on_line(p):
+							#ax.plot(p[0], p[1], 'o', color="red")
+							tmp.append(p)
 				elif isinstance(l, LineSegment):
-					res = line.cross_point(l)
-					print(res)
+					res = l.cross_point(line)
 					if res is None:
 						continue
+					res = line.cross_point(l)
+					if res is None:
+						continue
+					print("line", res)
+					#ax.plot(res[0], res[1], 'o', color="red")
+					#plt.pause(1)
 					tmp.append(res)
 			points.append(tmp)
-		
-		selected_point = []
+
+		selected_point_max = []
+		selected_point_min = []
 		for p, line in zip(points, self.make_lines(base_line, 32)):
 			max_len = 0
 			min_len = line.length
 			max_p = None
 			min_p = None
+			if p == []:
+				continue
 			for pp in p:
+				#ax.plot(pp[0], pp[1], 'o', color="red")
+				#plt.pause(1)
 				l1 = LineSegment(gp, pp)
 				if max_len < l1.length:
 					max_p = pp
@@ -291,14 +302,20 @@ class MyFont:
 				if min_len > l1.length:
 					min_p = pp
 					min_len = l1.length
-				break
-			LineSegment(gp, min_p).plot_line(ax)
-			break
-			selected_point.append((max_p, min_p))
+			selected_point_max.append(max_p)
+			selected_point_min.append(min_p)
 		
-		for p in selected_point:
-			xs, ys = zip(*selected_point)
-			#ax.plot(xs, ys, 'o', color="red")
+		xs, ys = zip(*selected_point_max)
+		ax.plot(xs, ys, 'o', color="red")
+		"""
+		for p in zip(selected_point_max, selected_point_min):
+			print(p)
+			xs, ys = zip(*p)
+			#print(xs, ys)
+			ax.plot(xs, ys, 'o', color="red")
+		"""
+
+		return selected_point_max, selected_point_min
 
 		#ax.set_aspect('equal')
 		
@@ -314,9 +331,15 @@ def main():
 	#myfont.test_exe("黑", "黒")
 	#myfont.test_exe("p", "P")
 
-	myfont.test2("Å")
-	plt.grid()
-	myfont.test2("A")
+	# TODO:Rを計算
+	p1, p2 = myfont.test2("Å")
+	n1 = np.array(zip(*p1))
+	n2 = np.array(p2)
+	p3, p4 = myfont.test2("A")
+	n3 = np.array(zip(*p3))
+	n4 = np.array(p4)
+
+	print(np.dot(n1, n3) / (np.linalg.norm(n1) * np.linalg.norm(n3)))
 
 	plt.grid()
 	plt.show()
