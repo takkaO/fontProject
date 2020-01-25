@@ -257,7 +257,10 @@ class MyFont:
 		gp = (s_x + (b_x - s_x) / 2, s_y + (b_y - s_y) / 2)
 
 		base_line = LineSegment((gp[0], gp[1]), (gp[0] + max(b_x, b_y) ,gp[1]))
+		points = []
+
 		for line in self.make_lines(base_line, 32):
+			tmp = []
 			line.plot_line(ax, color="gray")
 			for l in lines:
 				if isinstance(l, Bezier4) or isinstance(l, Bezier3):
@@ -265,12 +268,37 @@ class MyFont:
 					t, res = bc.clipping()
 					if res:
 						p = l.beizer_point(t)
-						ax.plot(p[0], p[1], 'o', color = "red")
+						tmp.append(p)
 				elif isinstance(l, LineSegment):
-					res = l.cross_point(line)
+					res = line.cross_point(l)
+					print(res)
 					if res is None:
 						continue
-					ax.plot(res[0], res[1], "o", color="red")
+					tmp.append(res)
+			points.append(tmp)
+		
+		selected_point = []
+		for p, line in zip(points, self.make_lines(base_line, 32)):
+			max_len = 0
+			min_len = line.length
+			max_p = None
+			min_p = None
+			for pp in p:
+				l1 = LineSegment(gp, pp)
+				if max_len < l1.length:
+					max_p = pp
+					max_len = l1.length
+				if min_len > l1.length:
+					min_p = pp
+					min_len = l1.length
+				break
+			LineSegment(gp, min_p).plot_line(ax)
+			break
+			selected_point.append((max_p, min_p))
+		
+		for p in selected_point:
+			xs, ys = zip(*selected_point)
+			#ax.plot(xs, ys, 'o', color="red")
 
 		#ax.set_aspect('equal')
 		
