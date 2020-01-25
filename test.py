@@ -5,6 +5,7 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 from bezier_clipping import BezierClipping
+from bezier_module import Bezier3, Bezier4, LineSegment
 
 class MyFont:
 	def __init__(self, font_path):
@@ -85,6 +86,51 @@ class MyFont:
 			else:
 				print("Uncatch: ", val[0])
 		return verts, codes
+	
+	def control2Lines(self, control, log=True):
+		"""
+		抽出した制御点情報をベジェ曲線と直線の集合系に変換する
+
+		--- Parameters ---
+		control : getVectorControl()で取得した制御点情報
+		--- Return ---
+
+		"""
+		path_start_point = None
+		start_point = None
+		lines = []
+
+		for val in control:
+			if log:
+				print(val)
+			if val[0] == "closePath":
+				l = LineSegment(path_start_point, start_point)
+				lines.append(l)
+			elif val[0] == "moveTo":
+				## Update close path start point
+				start_point = val[1][0]
+				path_start_point = val[1][0]
+			elif val[0] == "qCurveTo":
+				if len(val[1]) == 2:
+					## quadratic Bezier curve
+					b = Bezier3(start_point, val[1][0], val[1][1])
+					lines.append(b)
+					start_point = val[1][1]
+				elif len(val[1]) == 3:
+					## cubic Bezier curve
+					b = Bezier4(start_point, val[1][0], val[1][1], val[1][2])
+					lines.append(b)
+					start_point = val[1][2]
+				else:
+					print("Error")
+					exit(1)
+			elif val[0] == "lineTo":
+				l = LineSegment(start_point, val[1][0])
+				lines.append(l)
+				start_point = val[1][0]
+			else:
+				print("Uncatch: ", val[0])
+		return lines
 	
 	def draw(self, char, control_path = True, show=True):
 		"""
@@ -175,31 +221,59 @@ class MyFont:
 		if sim > 0.6:
 			print("similarity!")
 	
+	def make_lines(self, base_line, div_num):
+		deg_per = 360 / div_num
+		lines = []
+		for n in range(div_num):
+			rad = np.deg2rad(deg_per * n)
+			l = base_line.translation(base_line.v1).rotate(rad).translation(-base_line.v1)
+			lines.append(l)
+		return lines
+	
 	def test2(self, char="a"):
 		ctrl = self.getVectorControl(char)
-		verts, codes = self.control2Path(ctrl, log=False)
-		tmp = []
-		for vert, code in zip(verts, codes):
-			if code == Path.CLOSEPOLY:
-				break
-			tmp.append(vert)
-		verts = tmp
+		lines = self.control2Lines(ctrl, log=False)
+		verts, _ = self.control2Path(ctrl, log=False)
+		
+		xs, ys = zip(*verts)
 
-		gx = 0.0
-		gy = 0.0
-		for point in verts:
-			gx += point[0]
-			gy += point[1]
-		gx /= len(verts)
-		gy /= len(verts)
+		s_x, b_x = min(xs), max(xs)
+		s_y, b_y = min(ys), max(ys)
 
-		g_point = np.array([gx, gy])
-		vector = []
-		for point in verts:
-			vector.append(np.linalg.norm(g_point - np.array(point)))
+		_, ax = plt.subplots()
+		for l in lines:
+			if isinstance(l, Bezier4) or isinstance(l, Bezier3):
+				pass
+				ax = l.plot_bezier(ax)
+				#l.plot_control_point(ax)
+			elif isinstance(l, LineSegment):
+				ax = l.plot_line(ax, color="black")
+				pass
 
-		return np.array(vector)
+		#ax.plot(s_x, s_y, 'o')
+		#ax.plot(b_x, b_y, 'o')
+		#gp = self.fetchGravityPoint(char)
+		#ax.plot(gp[0], gp[1], 'o')
+		gp = (s_x + (b_x - s_x) / 2, s_y + (b_y - s_y) / 2)
 
+		base_line = LineSegment((gp[0], gp[1]), (gp[0] + max(b_x, b_y) ,gp[1]))
+		for line in self.make_lines(base_line, 32):
+			line.plot_line(ax, color="gray")
+			for l in lines:
+				if isinstance(l, Bezier4) or isinstance(l, Bezier3):
+					bc = BezierClipping(l, line)
+					t, res = bc.clipping()
+					if res:
+						p = l.beizer_point(t)
+						ax.plot(p[0], p[1], 'o', color = "red")
+				elif isinstance(l, LineSegment):
+					res = l.cross_point(line)
+					if res is None:
+						continue
+					ax.plot(res[0], res[1], "o", color="red")
+
+		#ax.set_aspect('equal')
+		
 
 def main():
 	myfont = MyFont("./IPAfont00303/ipag.ttf")
@@ -209,9 +283,15 @@ def main():
 	#v2 = myfont.test2("黒")
 	#myfont.draw("お", show=False)
 	#myfont.draw("あ")
-	myfont.test_exe("黑", "黒")
-	myfont.test_exe("p", "P")
+	#myfont.test_exe("黑", "黒")
+	#myfont.test_exe("p", "P")
 
+	myfont.test2("Å")
+	plt.grid()
+	myfont.test2("A")
+
+	plt.grid()
+	plt.show()
 
 
 if __name__ == "__main__":

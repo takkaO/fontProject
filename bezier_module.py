@@ -248,3 +248,16 @@ class LineSegment:
 		ax.plot(xs, ys, linestyle, color=color)
 		return ax
 	
+	def translation(self, point):
+		p = np.array(point)
+		return LineSegment(self.v1-p, self.v2-p)
+
+	def rotate(self, rad):
+		rv = np.array([[np.cos(rad), -np.sin(rad)],
+                       [np.sin(rad),  np.cos(rad)]])
+
+		p = []
+		for c in self.verts:
+			p.append(np.dot(rv, c))
+
+		return LineSegment(p[0], p[1])
