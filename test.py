@@ -277,7 +277,7 @@ class MyFont:
 					res = line.cross_point(l)
 					if res is None:
 						continue
-					print("line", res)
+					#print("line", res)
 					#ax.plot(res[0], res[1], 'o', color="red")
 					#plt.pause(1)
 					tmp.append(res)
@@ -288,10 +288,8 @@ class MyFont:
 		for p, line in zip(points, self.make_lines(base_line, 32)):
 			max_len = 0
 			min_len = line.length
-			max_p = None
-			min_p = None
-			if p == []:
-				continue
+			max_p = gp
+			min_p = gp
 			for pp in p:
 				#ax.plot(pp[0], pp[1], 'o', color="red")
 				#plt.pause(1)
@@ -315,7 +313,10 @@ class MyFont:
 			ax.plot(xs, ys, 'o', color="red")
 		"""
 
-		return selected_point_max, selected_point_min
+		r_max = [LineSegment(gp, p).length for p in selected_point_max]
+		r_min = [LineSegment(gp, p).length for p in selected_point_min]
+
+		return selected_point_max, selected_point_min, r_max, r_min
 
 		#ax.set_aspect('equal')
 		
@@ -331,18 +332,19 @@ def main():
 	#myfont.test_exe("黑", "黒")
 	#myfont.test_exe("p", "P")
 
-	# TODO:Rを計算
-	p1, p2 = myfont.test2("Å")
-	n1 = np.array(zip(*p1))
-	n2 = np.array(p2)
-	p3, p4 = myfont.test2("A")
-	n3 = np.array(zip(*p3))
-	n4 = np.array(p4)
+	_, _, r1, r2 = myfont.test2("D")
+	n1 = np.array(r1)
+	n2 = np.array(r2)
+	_, _, r3, r4 = myfont.test2("s")
+	n3 = np.array(r3)
+	n4 = np.array(r4)
 
 	print(np.dot(n1, n3) / (np.linalg.norm(n1) * np.linalg.norm(n3)))
+	print(np.dot(n2, n4) / (np.linalg.norm(n2) * np.linalg.norm(n4)))
+
 
 	plt.grid()
-	plt.show()
+	#plt.show()
 
 
 if __name__ == "__main__":

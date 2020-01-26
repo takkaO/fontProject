@@ -65,12 +65,12 @@ class BezierClipping:
 		
 		if len(t) < 2:
 			# TODO:1個だけの場合の処理を追加
-			print("No cross point")
+			#print("No cross point")
 			return current_line.midpoint[0], False
 		
 		# tmin, tmax
 		t = sorted(t)
-		print("t:", t)
+		#print("t:", t)
 
 		p = []
 		for i in range(len(t)):
