@@ -230,7 +230,7 @@ class MyFont:
 			lines.append(l)
 		return lines
 	
-	def test2(self, char="a"):
+	def test2(self, char="a", line_num=32):
 		ctrl = self.getVectorControl(char)
 		lines = self.control2Lines(ctrl, log=False)
 		verts, _ = self.control2Path(ctrl, log=False)
@@ -258,17 +258,22 @@ class MyFont:
 
 		base_line = LineSegment((gp[0], gp[1]), (gp[0] + max(b_x, b_y) ,gp[1]))
 		points = []
-		for line in self.make_lines(base_line, 32):
+		for line in self.make_lines(base_line, line_num):
 			tmp = []
 			line.plot_line(ax, color="gray")
 			for l in lines:
 				if isinstance(l, Bezier4) or isinstance(l, Bezier3):
 					bc = BezierClipping(l, line)
-					t, res = bc.clipping()
-					if res:
+					ts = bc.clipping()
+					if bc.has_failed and bc.result:
+						print("Failed occur!!!!")
+					if not bc.result:
+						continue
+					for t in ts:
 						p = l.beizer_point(t)
+						#ax.plot(p[0], p[1], 'o', color="red")
 						if line.is_point_on_line(p):
-							#ax.plot(p[0], p[1], 'o', color="red")
+							#ax.plot(p[0], p[1], 'o', color="blue")
 							tmp.append(p)
 				elif isinstance(l, LineSegment):
 					res = l.cross_point(line)
@@ -285,7 +290,7 @@ class MyFont:
 
 		selected_point_max = []
 		selected_point_min = []
-		for p, line in zip(points, self.make_lines(base_line, 32)):
+		for p, line in zip(points, self.make_lines(base_line, line_num)):
 			max_len = 0
 			min_len = line.length
 			max_p = gp
@@ -300,11 +305,14 @@ class MyFont:
 				if min_len > l1.length:
 					min_p = pp
 					min_len = l1.length
+
 			selected_point_max.append(max_p)
 			selected_point_min.append(min_p)
 		
 		xs, ys = zip(*selected_point_max)
 		ax.plot(xs, ys, 'o', color="red")
+		xs, ys = zip(*selected_point_min)
+		ax.plot(xs, ys, '.', color="blue")
 		"""
 		for p in zip(selected_point_max, selected_point_min):
 			print(p)
@@ -322,29 +330,23 @@ class MyFont:
 		
 
 def main():
-	myfont = MyFont("./IPAfont00303/ipag.ttf")
+	#myfont = MyFont("./IPAfont00303/ipag.ttf")
+	myfont = MyFont("./unifont-12.0.01.ttf")
 	#myfont = MyFont("./NotoMono-hinted/NotoMono-Regular.ttf")
-	#myfont.draw("Å")
-	#v1 = myfont.test2("黑")
-	#v2 = myfont.test2("黒")
-	#myfont.draw("お", show=False)
-	#myfont.draw("あ")
-	#myfont.test_exe("黑", "黒")
-	#myfont.test_exe("p", "P")
 
-	_, _, r1, r2 = myfont.test2("D")
+	_, _, r1, r2 = myfont.test2("黑")
 	n1 = np.array(r1)
 	n2 = np.array(r2)
-	_, _, r3, r4 = myfont.test2("s")
+	plt.grid()
+	_, _, r3, r4 = myfont.test2("黒")
 	n3 = np.array(r3)
 	n4 = np.array(r4)
 
 	print(np.dot(n1, n3) / (np.linalg.norm(n1) * np.linalg.norm(n3)))
 	print(np.dot(n2, n4) / (np.linalg.norm(n2) * np.linalg.norm(n4)))
 
-
 	plt.grid()
-	#plt.show()
+	plt.show()
 
 
 if __name__ == "__main__":

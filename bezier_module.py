@@ -76,6 +76,14 @@ class Bezier3:
 		xs, ys = self.points4matplot
 		ax.plot(xs, ys, 'x--', lw=2, color=color, ms=10)
 		return ax
+	
+	def plot_convexhull(self, ax=None, color='gray'):
+		if ax is None:
+			_, ax = plt.subplots()
+		convex = self.getConvexLineSegment()
+		for l in convex:
+			l.plot_line(ax, color=color)
+
 
 class Bezier4:
 	def __init__(self, sp, cp1, cp2, ep):
@@ -159,6 +167,14 @@ class Bezier4:
 		xs, ys = self.points4matplot
 		ax.plot(xs, ys, 'x--', lw=2, color=color, ms=10)
 		return ax
+	
+	def plot_convexhull(self, ax=None, color='gray'):
+		if ax is None:
+			_, ax = plt.subplots()
+		convex = self.getConvexLineSegment()
+		for l in convex:
+			l.plot_line(ax, color=color)
+
 
 
 class LineSegment:
@@ -211,7 +227,7 @@ class LineSegment:
 		else:
 			return None
 
-	def is_point_on_line(self, point, error=1e-6):
+	def is_point_on_line(self, point, error=1e-3):
 		p1 = np.array(self.v1)
 		p2 = np.array(self.v2)
 		p3 = np.array(point)
