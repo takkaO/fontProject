@@ -94,7 +94,7 @@ class MyFont:
 		--- Parameters ---
 		control : getVectorControl()で取得した制御点情報
 		--- Return ---
-
+		lines : Bezier3, Bezier4, LineSegment の集合
 		"""
 		path_start_point = None
 		start_point = None
@@ -180,48 +180,17 @@ class MyFont:
 
 		g_point = np.array([gx, gy])
 		return g_point
-
-	def test(self, char="a"):
-		ctrl = self.getVectorControl(char)
-		verts, codes = self.control2Path(ctrl, log=False)
-
-		gx = 0.0
-		gy = 0.0
-		for point in verts:
-			gx += point[0]
-			gy += point[1]
-		gx /= len(verts)
-		gy /= len(verts)
-
-		g_point = np.array([gx, gy])
-		vector = []
-		for point in verts:
-			vector.append(np.linalg.norm(g_point - np.array(point)))
-
-		return np.array(vector)
-	
-	def test_exe(self, char1, char2):
-		print(char1, "<->", char2)
-		v1 = self.test(char1)
-		v2 = self.test(char2)
-
-		penalty = 0
-		if len(v1) < len(v2):
-			penalty = len(v2) - len(v1)
-			v2 = v2[0:len(v1)]
-		elif len(v1) > len(v2):
-			penalty = len(v1) - len(v2)
-			v1 = v1[0:len(v2)]
-
-		cos = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
-		print(cos)
-		sim = cos - (penalty / 50.0)
-		print(sim)
-
-		if sim > 0.6:
-			print("similarity!")
 	
 	def make_lines(self, base_line, div_num):
+		"""
+		ベースラインを基準にdiv_numで指定した数の放射線集合を作成する
+
+		--- Parameters ---
+		base_line : 基準となる線（LineSegmentオブジェクト）
+		div_num   : 作成する線の数 
+		--- Return ---
+		lines : LineSegmentの集合
+		"""
 		deg_per = 360 / div_num
 		lines = []
 		for n in range(div_num):
@@ -230,16 +199,30 @@ class MyFont:
 			lines.append(l)
 		return lines
 	
+
 	def test2(self, char="a", line_num=32):
+		"""
+		文字中心から文字交点までの最大，最小の長さ集合を取得する
+
+		--- Parameters ---
+		char     : 調査する文字
+		line_num : 使用する放射線の数 
+		--- Return ---
+		selected_point_max : 最大長をとる座標の場所 
+		selected_point_min : 最小長をとる座標の場所
+		r_max : 最大長集合
+		r_min : 最小長集合
+		"""
 		ctrl = self.getVectorControl(char)
 		lines = self.control2Lines(ctrl, log=False)
 		verts, _ = self.control2Path(ctrl, log=False)
 		
+		## 文字の座標範囲をチェック（放射線の長さを決めるのに使用）
 		xs, ys = zip(*verts)
-
 		s_x, b_x = min(xs), max(xs)
 		s_y, b_y = min(ys), max(ys)
 
+		## 文字を描画（for debug）
 		_, ax = plt.subplots()
 		for l in lines:
 			if isinstance(l, Bezier4) or isinstance(l, Bezier3):
@@ -249,14 +232,16 @@ class MyFont:
 			elif isinstance(l, LineSegment):
 				ax = l.plot_line(ax, color="black")
 				pass
-
-		#ax.plot(s_x, s_y, 'o')
-		#ax.plot(b_x, b_y, 'o')
+		
+		## アンカーポイントと制御点の重心を取得
 		#gp = self.fetchGravityPoint(char)
-		#ax.plot(gp[0], gp[1], 'o')
+
+		## 文字の中心座標を取得
 		gp = (s_x + (b_x - s_x) / 2, s_y + (b_y - s_y) / 2)
 
+		## 基準線を作成
 		base_line = LineSegment((gp[0], gp[1]), (gp[0] + max(b_x, b_y) ,gp[1]))
+		## 放射線との交点を調査
 		points = []
 		for line in self.make_lines(base_line, line_num):
 			tmp = []
@@ -288,6 +273,7 @@ class MyFont:
 					tmp.append(res)
 			points.append(tmp)
 
+		## 1つの線に対して最大点と最小点だけを抽出
 		selected_point_max = []
 		selected_point_min = []
 		for p, line in zip(points, self.make_lines(base_line, line_num)):
@@ -296,8 +282,6 @@ class MyFont:
 			max_p = gp
 			min_p = gp
 			for pp in p:
-				#ax.plot(pp[0], pp[1], 'o', color="red")
-				#plt.pause(1)
 				l1 = LineSegment(gp, pp)
 				if max_len < l1.length:
 					max_p = pp
@@ -305,45 +289,41 @@ class MyFont:
 				if min_len > l1.length:
 					min_p = pp
 					min_len = l1.length
-
 			selected_point_max.append(max_p)
 			selected_point_min.append(min_p)
 		
+		## 抽出した最大点と最小点を描画（for debug）
 		xs, ys = zip(*selected_point_max)
 		ax.plot(xs, ys, 'o', color="red")
 		xs, ys = zip(*selected_point_min)
 		ax.plot(xs, ys, '.', color="blue")
-		"""
-		for p in zip(selected_point_max, selected_point_min):
-			print(p)
-			xs, ys = zip(*p)
-			#print(xs, ys)
-			ax.plot(xs, ys, 'o', color="red")
-		"""
-
+		
+		## 中心と最大点，最小点の距離集合を作成
 		r_max = [LineSegment(gp, p).length for p in selected_point_max]
 		r_min = [LineSegment(gp, p).length for p in selected_point_min]
 
 		return selected_point_max, selected_point_min, r_max, r_min
 
-		#ax.set_aspect('equal')
-		
 
 def main():
-	#myfont = MyFont("./IPAfont00303/ipag.ttf")
-	myfont = MyFont("./unifont-12.0.01.ttf")
+	char1 = "黑"
+	char2 = "黒"
+	myfont = MyFont("./IPAfont00303/ipag.ttf")
+	#myfont = MyFont("./unifont-12.0.01.ttf")
 	#myfont = MyFont("./NotoMono-hinted/NotoMono-Regular.ttf")
 
-	_, _, r1, r2 = myfont.test2("黑")
+	_, _, r1, r2 = myfont.test2(char1)
 	n1 = np.array(r1)
 	n2 = np.array(r2)
 	plt.grid()
-	_, _, r3, r4 = myfont.test2("黒")
+
+	_, _, r3, r4 = myfont.test2(char2)
 	n3 = np.array(r3)
 	n4 = np.array(r4)
 
-	print(np.dot(n1, n3) / (np.linalg.norm(n1) * np.linalg.norm(n3)))
-	print(np.dot(n2, n4) / (np.linalg.norm(n2) * np.linalg.norm(n4)))
+	print(char1, "<->", char2)
+	print("Max vector: ", np.dot(n1, n3) / (np.linalg.norm(n1) * np.linalg.norm(n3)))
+	print("Min vector: ", np.dot(n2, n4) / (np.linalg.norm(n2) * np.linalg.norm(n4)))
 
 	plt.grid()
 	plt.show()
