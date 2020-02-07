@@ -1,162 +1,204 @@
-from matplotlib.path import Path
-import matplotlib.patches as patches
-import matplotlib.pyplot as plt
 import numpy as np
-from bezier_module import Bezier3, Bezier4, LineSegment
-
+import matplotlib.pyplot as plt
+from copy import deepcopy
+from line_module import Point, Bezier, PlaneLine
 
 class BezierClipping:
-	def __init__(self, bezier, line, ax=None):
-		self.original_bezier = bezier
-		self.original_line = line
-		self.ax = ax
-
-		# 変換処理
-		self.converted_bezier = self.convert_bezier(self.original_bezier, self.original_line)
-		self.converted_line = LineSegment((0,0), (1,0))
-
-		self.last_clipped_bezier = None
-		self._result = False
-		self._has_failed = False
-
-	@property
-	def result(self):
-		return self._result
+	def _check_arguments(self, target_bezier, target_line):
+		if not isinstance(target_bezier, Bezier):
+			return False
+		if not isinstance(target_line, PlaneLine):
+			return False
+		return True
 	
-	@property
-	def has_failed(self):
-		return self._has_failed
 
-	def convert_bezier(self, bezier, line):
-		a, b, c = line.equation_coefficient
-		tmp = []
-		n = len(bezier.verts) - 1
-		for i, point in enumerate(bezier.verts):
-			d = (a * point[0] + b * point[1] + c) / (np.sqrt(a**2 + b**2))
-			tmp.append((i/n, d))
-		
-		if n == 3:
-			# 3次ベジェ
-			return Bezier4(tmp[0], tmp[1], tmp[2], tmp[3])
-		elif n == 2:
-			# 2次ベジェ
-			return Bezier3(tmp[0], tmp[1], tmp[2])
-		else:
-			print("Covert Error")
-			exit()
-		
 	def _flatten(self, data):
 		if not isinstance(data, list) and not isinstance(data, tuple):
 			return [data]
 		return [element for item in data for element in (self._flatten(item) if hasattr(item, '__iter__') else [item])]
 
-	def clipping(self, current_bezier = None, current_line = None, limit=1e-3, times=None):
-		if current_bezier is None:
-			current_bezier = self.converted_bezier
-		if current_line is None:
-			current_line = self.converted_line
-		
-		#ax = current_bezier.plot_bezier()
-		#current_bezier.plot_control_point(ax)
-		# 凸包の4線分を取得
-		convex = current_bezier.getConvexLineSegment()
 
+	def convert_to_distance_based_bezier(self, target_bezier, target_line):
+		"""
+		Create a non-parametric Bezier curve with a distance from a target Bezier curve to a target line.
+
+		Parameters
+		----------
+		target_bezier : Bezier object
+			Bezier curve object.
+		target_line : PlaneLine object
+			Straight line object.
+
+		Returns
+		-------
+		bezier_curve : Bezier object
+			New non-parametric Bezier curve.
+		
+		Note 
+		-------
+		The standard for the distance between a Bezier curve and a straight line is a point on the Bezier curve.
+		"""
+		if not self._check_arguments(target_bezier, target_line):
+			msg = "Invalid arguments."
+			raise TypeError(msg.format('target_line', type(target_line)))
+
+		error = 1e-12
+		a, b, c = target_line.equation_coefficient
+		control_point = []
+		n = target_bezier.dims
+		for i, point in enumerate(target_bezier.points):
+			d = (a * point.x + b * point.y + c) / (np.sqrt(a**2 + b**2) + error)
+			control_point.append((i/n, d))
+		return Bezier(control_point)
+	
+
+	def detect_intersection(self, bezier, line, precision=1e-3):
+		"""
+		Fetches the intersection of a straight line and a Bezier curve.
+
+		Parameters
+		----------
+		bezier : Bezier object
+			Target Bezier curve.
+		line : PlaneLine object
+			Target line.
+		precision : float
+			Precision of intersection value.
+
+		Returns
+		-------
+		points : List of tuple
+			[(t, Point), ...]. t is parameter value, Point is (x, y) coodinates.
+		"""
+		t_values = self.clipping(bezier, line, precision)
+
+		on_line = lambda t: line.is_point_on_line(bezier.bezier_point(t))
+		p_lst = [(t, bezier.bezier_point(t)) for t in t_values if on_line(t)]
+		
+		return p_lst
+
+	def clipping(self, bezier, line, precision = 1e-3):
+		"""
+		Bezier clipping.
+
+		Parameters
+		----------
+		bezier : Bezier object
+			Target Bezier curve.
+		line : PlaneLine object
+			Target line.
+		precision : float
+			Precision of intersection value.
+
+		Returns
+		-------
+		t_values : list
+			Intersection 't' value. Not flatten list.
+		
+		Note 
+		-------
+		It is not checked whether the intersection is on the line segment.
+		"""
+		_bezier = self.convert_to_distance_based_bezier(bezier, line)
+		_line = PlaneLine([(0,0), (1,0)])
+		dic = {}
+		dic["base_bezier"] = _bezier
+		dic["current_bezier"] = _bezier
+		dic["base_line"] = _line
+		dic["current_line"] = _line
+		dic["precision"] = precision
+
+		ret = self._clipping(dic)
+		return self._flatten(ret)
+	
+
+	def _clipping(self, dic):
+		try:
+			convexhull = dic["current_bezier"].getConvexhullLines()
+		except:
+			ax = dic["base_bezier"].plot()
+			dic["base_line"].plot(ax)
+			dic["current_bezier"].plot(ax)
+			dic["current_line"].plot(ax)
+			plt.show()
+			print(dic["base_bezier"].plist)
+			exit()
 		t = []
-		for i in range(len(convex)):
-			p = convex[i].cross_point(current_line)
-			if not p is None:
-				t.append(p)
+		for line in convexhull:
+			p = line.intersection(dic["current_line"])
+			if p is None:
+				continue
+			t.append(p)
 		
-		if len(t) < 2:
-			# TODO:1個だけの場合の処理を追加
-			if len(t) == 1:
-				print("!!! Exception !!!")
-			#print("No cross point")
-			self._has_failed = True
-			return self._flatten(current_line.midpoint[0])
-		if len(t) > 2:
-			t = [min(t), max(t)]
-
-		# tmin, tmax
-		t = sorted(t)
-		#print("t:", t)
-
-		p = []
-		for i in range(len(t)):
-			# ベジェ曲線上のポイントを取得
-			z = self.converted_bezier.beizer_point(t[i][0])
-			p.append(z)
+		if len(t) == 0:
+			## No intersection
+			return []
+		elif len(t) == 1:
+			return dic["current_line"].midpoint.x
+		else:
+			t = sorted(t, key=lambda p: p.x)
 		
-		_, b1 = self.converted_bezier.split_bezier(self.converted_line.calc_rate(t[0]), p[0])
-		
-		rate = LineSegment(t[0], self.converted_line.v2).calc_rate(t[1])
+		## Fetch t_min and t_max
+		t_min = t[0].x
+		t_max = t[-1].x
 
-		next_bezier, _ = b1.split_bezier(rate, p[1])
-		next_line = LineSegment(t[0], t[1])
+		bez, _ = dic["base_bezier"].split(t_max)
+		bez_t = t_min / t_max
+		_, next_bezier = bez.split(bez_t)
+		next_line = PlaneLine([(t_min, 0), (t_max, 0)])			
 
-		if np.abs(current_line.length - next_line.length) < 1e-6:
-			# 交点が複数存在する
-			rate = next_line.calc_rate(next_line.midpoint)
-			p = self.converted_bezier.beizer_point(next_line.midpoint[0])
-			nb1, nb2 = next_bezier.split_bezier(rate, p)
-			return self.clipping(nb1, next_line, limit=limit, times=times), self.clipping(nb2, next_line, limit=limit, times=times)
+		if np.abs(dic["current_line"].length - next_line.length) < 1e-6:
+			## Target has more than 2 intersection
+			b1, b2 = next_bezier.split(0.5)
+			dic1 = deepcopy(dic)
+			dic1["current_bezier"] = b1
+			dic1["current_line"] = next_line
+			dic2 = deepcopy(dic)
+			dic2["current_bezier"] = b2
+			dic2["current_line"] = next_line
+			return self._clipping(dic1), self._clipping(dic2)
 
-		self.last_clipped_bezier = next_bezier
+		if next_line.length	<= dic["precision"]:
+			return next_line.midpoint.x
+		dic["current_bezier"] = next_bezier
+		dic["current_line"] = next_line
+		return self._clipping(dic)
 
-		if next_line.length <= limit:
-			self._result = True
-			return self._flatten(next_line.midpoint[0])
-		if not times is None:
-			if times == 0:
-				self._result = True
-				return self._flatten(next_line.midpoint[0])
-			else:
-				times -= 1
-		return self._flatten(self.clipping(next_bezier, next_line, limit=limit, times = times))
 
 def main():
-	print("Hello World")
-	parent_bp = Bezier4((0, -1), (1.0/3.0, 3), (1.0/3.0, -4), (1.0, 3))
-	#parent_bp = Bezier3((0, 2), (1.0/3.0, 4), (1.0, -3))
-
-	parent_line = LineSegment((0, 0), (1, 0))
-
+	bc = BezierClipping()
 	
-	ax = parent_bp.plot_bezier(color="darkblue")
-	parent_bp.plot_control_point(ax, color="gray")
-	parent_line.plot_line(ax)
+	## Example1
+	b1 = Bezier([(0, -5), (1.0/3.0, 8), (2.0/3.0, 1), (1.2, -6), (1.5, 5)])
+	l1 = PlaneLine([(0,-2), (1.5,1.5)])
+	ax = b1.plot()
+	l1.plot(ax)
 	
-	bc = BezierClipping(parent_bp, parent_line, ax)
-	res = bc.clipping(limit=1e-3)
-	print(res)
-
-	bc.converted_bezier.plot_bezier(ax)
-	for l in bc.converted_bezier.getConvexLineSegment():
-		l.plot_line(ax)
-
-	"""
-	ts, r = zip(*res) 
-	print(ts)
-	print(r)
-
+	res = bc.detect_intersection(b1, l1)	
+	print("Result1:")
+	if not res == []:
+		ts, ps = zip(*res)
+		for t, p in zip(ts, ps):
+			print("t:{:.3f} -> (x, y) = {}".format(t, p.point))
+			p.plot(ax, fmt="or")
+	plt.grid()
 	
-	
-	bc.last_clipped_bezier.plot_bezier(ax)
-	for l in bc.last_clipped_bezier.getConvexLineSegment():
-		l.plot_line(ax)
+	## Example2
+	b2 = Bezier([(3, -5), (5, 8), (8, -1)])
+	l2 = PlaneLine([(2, -5), (9, 4)])
+	ax = b2.plot()
+	l2.plot(ax)
 
-	for t in ts:
-		point = parent_bp.beizer_point(t)
-		if parent_line.is_point_on_line(point):
-			ax.plot(point[0], point[1], 'o', color="red")
-		else:
-			print("Out of Range")
-	"""
+	res = bc.detect_intersection(b2, l2)
+	print("Result2:")
+	if not res == []:
+		ts, ps = zip(*res)
+		for t, p in zip(ts, ps):
+			print("t:{:.3f} -> (x, y) = {}".format(t, p.point))
+			p.plot(ax, fmt="or")
+
 	plt.grid()
 	plt.show()
-
-	
-	
 
 if __name__ == "__main__":
 	main()
