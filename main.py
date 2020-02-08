@@ -191,8 +191,8 @@ class MyFont:
 		for p, line in zip(points, radial_lines):
 			max_len = 0
 			min_len = line.length
-			max_p = gp.point
-			min_p = gp.point
+			max_p = gp
+			min_p = gp
 			for pp in p:
 				l1 = PlaneLine([gp, pp])
 				if max_len < l1.length:
