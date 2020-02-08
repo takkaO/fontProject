@@ -1,0 +1,3 @@
+[submodule "bezier_clipping_module"]
+	path = bezier_clipping_module
+	url = https://github.com/takkaO/Bezier_Clipping_Algorithm.git

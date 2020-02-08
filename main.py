@@ -1,9 +1,10 @@
 from fontTools.ttLib import TTFont
-from fontTools.pens.recordingPen import RecordingPen
+from fontTools.pens.recordingPen import RecordingPen, DecomposingRecordingPen
+from fontTools.pens.transformPen import TransformPen
 import matplotlib.pyplot as plt
 import numpy as np
-from bezier_clipping import BezierClipping
-from line_module import Point, Bezier, PlaneLine
+from bezier_clipping_module.bezier_clipping import BezierClipping
+from bezier_clipping_module.line_module import Point, Bezier, PlaneLine
 
 import warnings
 warnings.filterwarnings('error')
@@ -22,10 +23,13 @@ class MyFont:
 		--- Return ---
 		グリフ情報
 		"""
-		# TODO: 数値を直接指定しても良いようにする
-		glyph_name = self.cmap[ord(char)]
+		if isinstance(char, int):
+			glyph_name = self.cmap[char]
+		else:
+			glyph_name = self.cmap[ord(char)]
 		return self.glyph_set[glyph_name]
-	
+		
+
 	def getVectorControl(self, char):
 		"""
 		グリフ情報からベクタ画像用の制御点情報を抽出する
@@ -34,7 +38,8 @@ class MyFont:
 		--- Return ---
 		制御点情報
 		"""
-		recording_pen = RecordingPen()
+		#recording_pen = RecordingPen()
+		recording_pen = DecomposingRecordingPen(self.glyph_set)
 		obj = self.getGlyph(char)
 		obj.draw(recording_pen)
 		return recording_pen.value
@@ -72,6 +77,7 @@ class MyFont:
 				start_point = val[1][0]
 			elif val[0] == "addComponent":
 				print("[ERROR] 'addComponent' is not implemented!")
+				print("Please use 'DecomposingRecordingPen'")
 			else:
 				print("[ERROR] Unknown command: ", val[0])
 		return lines
@@ -99,6 +105,7 @@ class MyFont:
 			plt.show()
 		return ax
 	
+
 	def make_lines(self, base_line, div_num):
 		"""
 		ベースラインを基準にdiv_numで指定した数の放射線集合を作成する
@@ -118,7 +125,7 @@ class MyFont:
 		return lines
 	
 	
-	def test2(self, char="a", line_num=32, debug=False):
+	def fetch_distance_vectors(self, char="a", line_num=32, debug=False):
 		"""
 		文字中心から文字交点までの最大，最小の長さ集合を取得する
 
@@ -126,8 +133,8 @@ class MyFont:
 		char     : 調査する文字
 		line_num : 使用する放射線の数 
 		--- Return ---
-		selected_point_max : 最大長をとる座標の場所 
-		selected_point_min : 最小長をとる座標の場所
+		selected_point_max : 最大長をとる座標の集合 
+		selected_point_min : 最小長をとる座標の集合
 		r_max : 最大長集合
 		r_min : 最小長集合
 		"""
@@ -217,15 +224,16 @@ def main():
 	myfont = MyFont("./IPAfont00303/ipag.ttf")	
 	#myfont = MyFont("./unifont-12.0.01.ttf")
 	#myfont = MyFont("./NotoMono-hinted/NotoMono-Regular.ttf")
+	#myfont = MyFont("./Ubuntu-R.ttf")
 
 	line_num = 32
 
-	_, _, r1, r2 = myfont.test2(char1, line_num, debug = True)
+	_, _, r1, r2 = myfont.fetch_distance_vectors(char1, line_num, debug = True)
 	n1 = np.array(r1)
 	n2 = np.array(r2)
 	plt.grid()
 
-	_, _, r3, r4 = myfont.test2(char2, line_num, debug = True)
+	_, _, r3, r4 = myfont.fetch_distance_vectors(char2, line_num, debug=True)
 	n3 = np.array(r3)
 	n4 = np.array(r4)
 
